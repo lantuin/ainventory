@@ -1,0 +1,82 @@
+---
+- name: Retrieve information about package 
+  hosts: all
+  become: false
+  gather_facts: no
+
+  pre_tasks:
+  - name: gather facts on Linux
+    setup:
+      filter: ansible_*
+    when: "'linux' in group_names"
+
+  - name: gather facts on mac
+    setup:
+      filter: ansible_*
+    when: "'mac' in group_names"
+
+  tasks:
+  - name: Retrieve software from WINDOWS boxes
+    block:
+      - name: retrieve software computer account
+        win_command: powershell.exe -exec bypass -c "Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* |  Select-Object DisplayName, DisplayVersion, Publisher, InstallDate"
+        register: software
+
+      - name: retrieve software computer account (Wow6432Node)
+        win_command: powershell.exe -exec bypass -c "Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* |  Select-Object DisplayName, DisplayVersion, Publisher, InstallDate" 
+        register: software_Wow6432Node
+
+      - name: copy output retrieve software to local file
+        local_action: copy content="{{ software.stdout }}" dest="inventory/software_win_{{ hostvars[inventory_hostname]['inventory_hostname'] }}.txt"
+
+      - name: copy output retrieve software Wow6432Node to local file
+        local_action: copy content="{{ software_Wow6432Node.stdout }}" dest="inventory/software_win_Wow6432Node_{{ hostvars[inventory_hostname]['inventory_hostname'] }}.txt"
+
+    when: "'windows' in group_names"
+
+  - name: Retrieve software from LINUX boxes
+    block:
+      - name: retrieve package facts from linux
+        package_facts:
+          manager: auto
+
+      - name: retrieve rpm command output from linux (redhat based)
+        command: rpm -qa
+        register: rpm_output
+        when: ansible_pkg_mgr == 'dnf' or ansible_pkg_mgr == 'yum'
+
+      - name: retrieve dpkg command output from linux (debian based)
+        command: dpkg --list
+        register: dpkg_output
+        when: ansible_pkg_mgr == 'apt'
+
+      - name: copy output package_facts
+        local_action: copy content="{{ ansible_facts.packages }}" dest="inventory/software_linux_packagefacts_{{ hostvars[inventory_hostname]['inventory_hostname'] }}.json"
+
+      - name: copy output rpm
+        local_action: copy content="{{ rpm_output.stdout }}" dest="inventory/software_linux_rpm_{{ hostvars[inventory_hostname]['inventory_hostname'] }}.txt"
+        when: ansible_pkg_mgr == 'dnf' or ansible_pkg_mgr == 'yum'
+
+      - name: copy output dpkg
+        local_action: copy content="{{ dpkg_output.stdout }}" dest="inventory/software_linux_dpkg_{{ hostvars[inventory_hostname]['inventory_hostname'] }}.txt"
+        when: ansible_pkg_mgr == 'apt'
+
+    when: "'linux' in group_names"
+  
+  - name: retrieve software from Mac BOXES
+    block:
+      - name: retrieve packages from Mac using system_profiler
+        command: system_profiler SPApplicationsDataType
+        register: software_mac
+
+      - name: retrieve packages from Mac using system_profiler (XML)
+        command: system_profiler SPApplicationsDataType -xml
+        register: software_mac_xml
+
+      - name: copy output retrieve packages from Mac to local file
+        local_action: copy content="{{ software_mac.stdout }}" dest="inventory/software_mac_{{ hostvars[inventory_hostname]['inventory_hostname'] }}.txt"
+  
+      - name: copy output retrieve packages from Mac to local xml file
+        local_action: copy content="{{ software_mac_xml.stdout }}" dest="inventory/software_mac_{{ hostvars[inventory_hostname]['inventory_hostname'] }}.xml"
+    when: "'mac' in group_names"
+
