@@ -3,7 +3,7 @@ It's compatible with Linux (Debian and Red Hat based), MAC (using system_profile
 
 HOSTS file is self-explanatory. 
 
-Output files will be written in inventory/ subdirectory
+Output files will be written in inventory/ subdirectory in different formats.
 
 
 ```
