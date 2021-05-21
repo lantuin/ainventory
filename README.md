@@ -9,3 +9,12 @@ Output files will be written in inventory/ subdirectory in different formats.
 ```
 $ ansible-playbook playbook.yml -i hosts
 ```
+
+### LINUX
+Use this in hosts linux vars section (if managed machines have python2 and python3)
+
+```
+[linux:vars]
+...
+ansible_python_interpreter=/usr/bin/python3
+```
